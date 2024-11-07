@@ -8,6 +8,10 @@
 #define STEP_S_PIN 27
 #define SHUTTER_PIN 23
 
+#define SIDER_TMR 0
+#define MOVE_TMR 1
+#define SHUT_TMR 2
+
 /*
  TMC2209 speed map
  MS2    MS1     microstep
@@ -23,7 +27,11 @@
 #define TARGET_SPEED_DEG (15.0 / 3600)  // deg/s (15'/sec)
 #define STEPS_PER_DEG ((_MOTOR_STEPS_PER_REV * _MICROSTEPS * _REDUCTION) / 360.0)
 #define STEPS_PER_REV (_REDUCTION * _MOTOR_STEPS_PER_REV * _MICROSTEPS)
-#define SPS (STEPS_PER_REV / (3600 * 24))     // steps/s
+// #define SPS (STEPS_PER_REV / (3600 * 24))     // steps/s
+#define SPS (STEPS_PER_REV / 86164.09054)     // steps/s
+#define SEC_PER_STEP (((360.0 * 3600) / _MOTOR_STEPS_PER_REV) / (_MICROSTEPS * _REDUCTION))
+#define RA_SEC_PER_STEP (((24.0 * 3600) / _MOTOR_STEPS_PER_REV) / (_MICROSTEPS * _REDUCTION))
+#define MOVE_SPS 10000
 
 #define SHUTTER_DIV 40000
 #define SHUTTER_MUL 2000

@@ -1,6 +1,7 @@
 #include <settings.h>
 
 #include <GyverHub.h>
+#include <WiFi.h>
 
 #include <driver/timer.h>
 
@@ -8,6 +9,34 @@
 #define XSTR(x) #x
 #define STR(x) F(XSTR(x))
 
+
+void sec_to_comp(double sec, int &d, int &m, double &s) {
+    double dd = sec / 3600.0;
+    d = (int)dd;
+    m = (int)((dd - d) * 60);
+    s = (dd - d - m / 60.0) * 3600.0;
+}
+void sec_to_comp(double sec, int &d, int &m, int &s) {
+    sec_to_comp(sec, d, m, (double &)s);
+}
+
+int comp_to_sec(int d, int m, int s) {
+    int sign = (d < 0 || m < 0 || s < 0)? -1: 1;
+    return sign * (d * 3600 + m * 60 + s);
+}
+
+void calculate_stepper_timer(double half_sps, uint16_t &divider, uint64_t &alarm_value) {
+    double x = infinity();
+    for (int presc = 2; presc < 65536; ++presc) {
+        double ticks = APB_CLK_FREQ / (half_sps * presc);
+        double y = ticks - int(ticks);
+        if (y < x) {
+            x = y;
+            divider = presc;
+            alarm_value = (uint64_t)ticks;
+        }
+    }
+}
 
 // from esp-hal-timer.c
 struct hw_timer_s {
@@ -29,13 +58,14 @@ class AstroTracker {
 
 public:
     int64_t steps = 0;
+    int64_t move_steps = 0;
 
     AstroTracker(int step_pin, int dir_pin, int direction = 1, int shutter_pin = -1, int en_pin = -1) :
             _step_pin(step_pin),
             _dir_pin(dir_pin),
             _en_pin(en_pin),
             _shutter_pin(shutter_pin) {
-        _direction = (direction > 0) ? 1 : -1;
+        _cur_dir = _direction = (direction > 0) ? 1 : -1;
 
         pinMode(step_pin, OUTPUT);
         digitalWrite(step_pin, 0);
@@ -51,36 +81,52 @@ public:
             digitalWrite(shutter_pin, 0);
         }
 
-        init_stepper_timer();
+        init_sidereal_timer();
     }
 
     void enable(bool val) {
-        if (_en_pin != -1)
-            digitalWrite(_en_pin, !val);
-        if (!val) {
-            timerAlarmDisable(_stepper_timer);
-        } else {
+         if (_en_pin != -1)
+             digitalWrite(_en_pin, !val);
+    }
+
+    void start_sidereal(bool reload = true) {
+        _sideric = true;
+        if (reload)
             steps = 0;
-            timerRestart(_stepper_timer);
-            timerAlarmEnable(_stepper_timer);
-        }
+        reverse(false);
+        digitalWrite(_step_pin, 0);
+        timerRestart(_sidereal_timer);
+        timerAlarmEnable(_sidereal_timer);
+    }
+
+    void stop_sidereal(bool pause = false) {
+        timerAlarmDisable(_sidereal_timer);
+        digitalWrite(_step_pin, 0);
+        if (!pause)
+            _sideric = false;
     }
 
     void reverse(bool val) {
         digitalWrite(_dir_pin, (_direction > 0) ^ val);
+        _cur_dir = ((_direction > 0) ^ val)? 1: -1;
     }
 
     void step() {
         digitalWrite(_step_pin, 1);
         delayMicroseconds(STEPPER_HIGH_TIME_US);
         digitalWrite(_step_pin, 0);
-        steps += _direction;
+        steps += _cur_dir;
     }
 
     void half_step() {
         static int x = 0;
         digitalWrite(_step_pin, (x ^= 1));
-        steps += _direction * x;
+        if (x) {
+            steps += _cur_dir;
+            if (move_steps)
+                if (!(move_steps -= _cur_dir))
+                    stop_move();
+        }
     }
 
     bool start_shutter(int shots, int shot_intv, int shot_exposure, double shot_delay_s) {
@@ -129,50 +175,81 @@ public:
         state = _shot_state;
     }
 
+    void stop_move() {
+        end_mover_timer();
+        move_steps = 0;
+        reverse(false);
+        if (_sideric)
+            start_sidereal(false);
+    }
+
+    void move(int64_t _steps) {
+        if (_sideric)
+            stop_sidereal(true);
+        end_mover_timer();
+        digitalWrite(_step_pin, 0);
+        move_steps += _steps;
+        reverse(move_steps < 0);
+        if (move_steps) {
+            init_mover_timer();
+            timerAlarmEnable(_mover_timer);
+        }
+    }
+
 private:
     int _step_pin;
     int _dir_pin;
     int _en_pin;
     int _direction;     // -1, 1
+    int _cur_dir;
 
+    bool _sideric = false;
     int _shutter_pin;
-    int _shots;
+    int _shots = 0;
     int _shot_intv = 0;
     int _shot_exposure = 0;
     shutter_state _shot_state = IDLE;
 
-    hw_timer_t *_stepper_timer = nullptr;
+    hw_timer_t *_sidereal_timer = nullptr;
+    hw_timer_t *_mover_timer = nullptr;
     hw_timer_t *_shutter_timer = nullptr;
 
-    void init_stepper_timer() {
-        uint16_t divider;
-        uint64_t alarm_value;
-        calculate_stepper_timer(SPS * 2, divider, alarm_value);
-        _stepper_timer = timerBegin(0, divider, true);
-        timer_isr_callback_add((timer_group_t)_stepper_timer->group, (timer_idx_t)_stepper_timer->num, (timer_isr_t)stepper_timer_isr, this, ESP_INTR_FLAG_LEVEL3);
-        timerAlarmWrite(_stepper_timer, alarm_value, true);
-        timerAlarmDisable(_stepper_timer);
+    void init_sidereal_timer() {
+        init_stepper_timer(&_sidereal_timer, SIDER_TMR, SPS);
     }
 
-    void calculate_stepper_timer(double half_sps, uint16_t &divider, uint64_t &alarm_value) {
-        double x = infinity();
-        for (int presc = 2; presc < 65536; ++presc) {
-            double ticks = APB_CLK_FREQ / (half_sps * presc);
-            double y = ticks - int(ticks);
-            if (y < x) {
-                x = y;
-                divider = presc;
-                alarm_value = ticks;
-            }
+    void init_mover_timer() {
+        if (!_mover_timer)
+            init_stepper_timer(&_mover_timer, MOVE_TMR, MOVE_SPS);
+    }
+
+    void init_stepper_timer(hw_timer_t **timer, uint8_t tmr_n, double sps, int intr_alloc_flags = 0) {
+        uint16_t divider;
+        uint64_t alarm_value;
+        calculate_stepper_timer(sps * 2, divider, alarm_value);
+        hw_timer_t *t = *timer = timerBegin(tmr_n, divider, true);
+        timer_isr_callback_add((timer_group_t)t->group, (timer_idx_t)t->num,
+                                (timer_isr_t)stepper_timer_isr, this, intr_alloc_flags);
+        timerAlarmWrite(t, alarm_value, true);
+        timerAlarmDisable(t);
+    }
+
+    void end_mover_timer() {
+        if (_mover_timer) {
+            digitalWrite(_step_pin, 0);
+            timerAlarmDisable(_mover_timer);
+            timerDetachInterrupt(_mover_timer);
+            timerEnd(_mover_timer);
+            _mover_timer = nullptr;
         }
     }
 
     bool init_shutter_timer(double shot_delay_s) {
         bool ret = false;
         if (_shutter_pin != -1 && !_shutter_timer) {
-            _shutter_timer = timerBegin(1, SHUTTER_DIV, true);
+            _shutter_timer = timerBegin(SHUT_TMR, SHUTTER_DIV, true);
             timer_isr_callback_add((timer_group_t)_shutter_timer->group, (timer_idx_t)_shutter_timer->num, (timer_isr_t)shutter_timer_isr, this, ESP_INTR_FLAG_LEVEL1);
-            _shot_exposure = (_shot_exposure + shot_delay_s) * SHUTTER_MUL;
+            _shot_exposure = (int)((_shot_exposure + shot_delay_s) * SHUTTER_MUL);
             _shot_intv = _shot_exposure - _shot_intv * SHUTTER_MUL;
             timerAlarmWrite(_shutter_timer, _shot_exposure, true);
             timerAlarmEnable(_shutter_timer);
@@ -239,7 +316,6 @@ public:
     }
 
     void tick(uint64_t us) {
-        // _tracker->tick(us);
         _hub.tick();
 
         if ((us - _upd_tmr_us) >= _upd_intv_us) {
@@ -247,18 +323,17 @@ public:
             if (_do_run)
                 _runned_us = us;
 
+            // main
             uint64_t t = (_runned_us - _run_time_us) / 1000000L;
             gh::Update upd(&_hub);
             upd.update(F("us")).value(_runned_us - _run_time_us);
             upd.update(F("time")).value(t);
             upd.update(F("steps")).value(_tracker->steps);
-            double dd = _tracker->steps / STEPS_PER_DEG;
-            int d = (int)dd;
-            int m = (int)((dd - d) * 60);
-            double s = (dd - d - m / 60.0) * 3600.0;
-            upd.update(F("sky_deg")).value(d);
-            upd.update(F("sky_min")).value(m);
-            upd.update(F("sky_sec")).value(s);
+            upd.update(F("sky_ra")).value(_tracker->steps * RA_SEC_PER_STEP);
+            // main-movement
+            upd.update(F("move_rem_ra")).value(_tracker->move_steps * SEC_PER_STEP);
+
+            // shutter
             int shots;
             shutter_state state;
             _tracker->shutter_status(shots, state);
@@ -289,6 +364,9 @@ private:
     double _shot_delay_s = CAMERA_SHOT_DELAY;
     bool _do_exposure = false;
 
+    // movement
+    int64_t _to_ra = 0;
+
     void on_build(gh::Builder& b) {
         static byte tab;
         if (b.Tabs(&tab).text(F("Main;Capture;Network")).click())
@@ -299,10 +377,10 @@ private:
             int x = b.build.value;
             if (!_do_run && x) {
                 _runned_us = _run_time_us = esp_timer_get_time() + 33333 * 2;
-                _tracker->enable(1);
+                _tracker->start_sidereal();
                 Serial.println(F("Run motor!"));
             } else if (x) {
-                _tracker->enable(0);
+                _tracker->stop_sidereal();
                 _runned_us = esp_timer_get_time();
                 Serial.println(F("Stop motor!"));
             }
@@ -312,19 +390,35 @@ private:
             upd.update(F("main_but")).icon(F(_do_run? "f28d": "f144"));
             upd.send();
         }
-        b.Button_(F("main_but"))
-            .label(F("Run"))
-            .icon(F(_do_run? "f28d": "f144"))
+        b.Button_(F("main_but")).label(F("Run")).icon(F(_do_run? "f28d": "f144"))
             .attach([this](){ this->_hub.sendAction(F("main_conf")); });
         b.Label_(F("us")).value(0).label(F("us"));
         b.beginRow();
         b.Time_(F("time")).value(0).disabled();
         b.Label_(F("steps")).value(0).label(F("steps"));
         b.endRow();
+        b.Time_(F("sky_ra")).value(0).label(F("RA")).disabled();
+
+        b.Title(F("Movement"));
         b.beginRow();
-        b.Label_(F("sky_deg")).value(0).label(F("Sky degrees"));
-        b.Label_(F("sky_min")).value(0).label(F("Sky minutes"));
-        b.Label_(F("sky_sec")).value(0.0).label(F("Sky seconds"));
+        b.Time_(F("move_ra"), &_to_ra).value(0).label(F("RA"));
+        b.Time_(F("move_rem_ra"), &_to_ra).value(0).label(F("RA remaining")).disabled();
+        b.endRow();
+        b.beginRow();
+        b.Button_(F("move_bwd")).noLabel().icon(F("f049")).attach([this](){
+            auto x = (double)this->_to_ra / SEC_PER_STEP;
+            Serial.printf("<< %f\n", (float)x);
+            this->_tracker->move(-(int64_t)x);
+        });
+        b.Button_(F("move_stop")).noLabel().icon(F("f04d")).attach([this](){
+            Serial.println("||");
+            this->_tracker->stop_move();
+        });
+        b.Button_(F("move_fwd")).noLabel().icon(F("f050")).attach([this](){
+            auto x = (double)this->_to_ra / SEC_PER_STEP;
+            Serial.printf(">> %f\n", (float)x);
+            this->_tracker->move((int64_t)x);
+        });
         b.endRow();
 
         b.show(tab == 1);   // Capture
@@ -355,7 +449,6 @@ private:
             .color(_do_exposure? gh::Colors::Blue: gh::Colors::Red)
             .label(F("Capture"))
             .attach([this](){ this->_hub.sendAction(F("capt_conf")); });
-        // add status
         b.Title(F("Status"));
         b.beginRow();
         b.Label_(F("capt_status_shots")).label(F("shots remaining")).value(0);
@@ -394,6 +487,7 @@ void setup() {
     Serial.begin(115200);
     Serial.println(F("setup"));
     iface.init(&tracker);
+    tracker.enable(true);
 }
 
 void loop() {

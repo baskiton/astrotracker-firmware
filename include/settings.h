@@ -2,6 +2,7 @@
 
 // TRACKER
 #define TRACKER_WIFI_AP
+// #define _SHOW_US
 
 #define STEP_E_PIN 25
 #define STEP_D_PIN 26
@@ -23,7 +24,7 @@
 #define STEPPER_HIGH_TIME_US 4 // for TMC2209 is 100 ns, btw
 #define _MICROSTEPS 64
 #define _MOTOR_STEPS_PER_REV 400
-#define _REDUCTION 101.25
+#define _REDUCTION (9.0 * (180.0 / 16.0))
 #define TARGET_SPEED_DEG (15.0 / 3600)  // deg/s (15'/sec)
 #define STEPS_PER_DEG ((_MOTOR_STEPS_PER_REV * _MICROSTEPS * _REDUCTION) / 360.0)
 #define STEPS_PER_REV (_REDUCTION * _MOTOR_STEPS_PER_REV * _MICROSTEPS)

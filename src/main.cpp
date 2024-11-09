@@ -16,6 +16,7 @@ void sec_to_comp(double sec, int &d, int &m, double &s) {
     m = (int)((dd - d) * 60);
     s = (dd - d - m / 60.0) * 3600.0;
 }
+
 void sec_to_comp(double sec, int &d, int &m, int &s) {
     sec_to_comp(sec, d, m, (double &)s);
 }
@@ -25,13 +26,25 @@ int comp_to_sec(int d, int m, int s) {
     return sign * (d * 3600 + m * 60 + s);
 }
 
-void calculate_stepper_timer(double half_sps, uint16_t &divider, uint64_t &alarm_value) {
+double racomp_to_rasec(uint8_t h, uint8_t m, double s) {
+    return h * 3600 + m * 60 + s;
+}
+
+double ra_to_asec(double ra) {
+    return ra * 15.0;
+}
+
+double asec_to_ra(double asec) {
+    return asec / 15.0;
+}
+
+void calculate_stepper_timer(double sps, uint16_t &divider, uint64_t &alarm_value) {
     double x = infinity();
     for (int presc = 2; presc < 65536; ++presc) {
-        double ticks = APB_CLK_FREQ / (half_sps * presc);
-        double y = ticks - int(ticks);
-        if (y < x) {
-            x = y;
+        double ticks = APB_CLK_FREQ / (sps * presc);
+        double xx = abs((ticks * presc) - (double)((uint64_t)ticks * presc)) / APB_CLK_FREQ;
+        if (xx < x) {
+            x = xx;
             divider = presc;
             alarm_value = (uint64_t)ticks;
         }
@@ -59,6 +72,7 @@ class AstroTracker {
 public:
     int64_t steps = 0;
     int64_t move_steps = 0;
+    uint64_t position_steps = 0;
 
     AstroTracker(int step_pin, int dir_pin, int direction = 1, int shutter_pin = -1, int en_pin = -1) :
             _step_pin(step_pin),
@@ -116,6 +130,14 @@ public:
         delayMicroseconds(STEPPER_HIGH_TIME_US);
         digitalWrite(_step_pin, 0);
         steps += _cur_dir;
+        if (move_steps) {
+            if (_cur_dir > 0)
+                position_steps = (position_steps - 1) > (uint64_t)STEPS_PER_REV? ((uint64_t)STEPS_PER_REV - 1): (position_steps - 1);
+            else
+                position_steps = (position_steps + 1) % (uint64_t)STEPS_PER_REV;
+            if (!(move_steps -= _cur_dir))
+                stop_move();
+        }
     }
 
     void half_step() {
@@ -123,9 +145,14 @@ public:
         digitalWrite(_step_pin, (x ^= 1));
         if (x) {
             steps += _cur_dir;
-            if (move_steps)
+            if (move_steps) {
+                if (_cur_dir > 0)
+                    position_steps = (position_steps - 1) > (uint64_t)STEPS_PER_REV? ((uint64_t)STEPS_PER_REV - 1): (position_steps - 1);
+                else
+                    position_steps = (position_steps + 1) % (uint64_t)STEPS_PER_REV;
                 if (!(move_steps -= _cur_dir))
                     stop_move();
+            }
         }
     }
 
@@ -175,15 +202,17 @@ public:
         state = _shot_state;
     }
 
-    void stop_move() {
+    void stop_move(bool restart = true) {
         end_mover_timer();
         move_steps = 0;
         reverse(false);
-        if (_sideric)
+        if (restart && _sideric)
             start_sidereal(false);
     }
 
     void move(int64_t _steps) {
+        if (!_steps)
+            return;
         if (_sideric)
             stop_sidereal(true);
         end_mover_timer();
@@ -194,6 +223,19 @@ public:
             init_mover_timer();
             timerAlarmEnable(_mover_timer);
         }
+    }
+
+    void move_to(int64_t _pos) {
+        if (_pos == position_steps)
+            return;
+        if (_sideric)
+            stop_sidereal(true);
+        stop_move(false);
+
+        int64_t diff = position_steps - _pos;
+        if (abs(diff) > (STEPS_PER_REV / 2))
+            diff += (diff < 0)? STEPS_PER_REV: -STEPS_PER_REV;
+        move(diff);
     }
 
 private:
@@ -226,7 +268,7 @@ private:
     void init_stepper_timer(hw_timer_t **timer, uint8_t tmr_n, double sps, int intr_alloc_flags = 0) {
         uint16_t divider;
         uint64_t alarm_value;
-        calculate_stepper_timer(sps * 2, divider, alarm_value);
+        calculate_stepper_timer(sps, divider, alarm_value);
         hw_timer_t *t = *timer = timerBegin(tmr_n, divider, true);
         timer_isr_callback_add((timer_group_t)t->group, (timer_idx_t)t->num,
                                 (timer_isr_t)stepper_timer_isr, this, intr_alloc_flags);
@@ -271,7 +313,7 @@ private:
 };
 
 bool IRAM_ATTR stepper_timer_isr(AstroTracker *tracker) {
-    tracker->half_step();
+    tracker->step();
 
     // some additional logic or handling may be required here to approriately yield or not
     return false;
@@ -326,12 +368,22 @@ public:
             // main
             uint64_t t = (_runned_us - _run_time_us) / 1000000L;
             gh::Update upd(&_hub);
+            #ifdef _SHOW_US
             upd.update(F("us")).value(_runned_us - _run_time_us);
+            #endif
             upd.update(F("time")).value(t);
             upd.update(F("steps")).value(_tracker->steps);
-            upd.update(F("sky_ra")).value(_tracker->steps * RA_SEC_PER_STEP);
+            upd.update(F("sky_ra")).value(asec_to_ra(_tracker->position_steps * SEC_PER_STEP));
+            double s;
+            int d, m;
+            sec_to_comp(_tracker->position_steps * SEC_PER_STEP, d, m, s);
+            snprintf(_sky_deg, sizeof(_sky_deg), "%3i° %2i' %6.03f\"", d, m, s);
+            upd.update(F("sky_deg")).value(_sky_deg);
             // main-movement
-            upd.update(F("move_rem_ra")).value(_tracker->move_steps * SEC_PER_STEP);
+            sec_to_comp(_tracker->move_steps * SEC_PER_STEP, d, m, s);
+            upd.update(F("move_rem_ra")).value(asec_to_ra(_tracker->move_steps * SEC_PER_STEP));
+            snprintf(_move_rem_deg, sizeof(_move_rem_deg), "%3i° %2i' %6.03f\"", d, abs(m), abs(s));
+            upd.update(F("move_rem_deg")).value(_move_rem_deg);
 
             // shutter
             int shots;
@@ -363,9 +415,12 @@ private:
     int _intv_s = CAMERA_INTV;
     double _shot_delay_s = CAMERA_SHOT_DELAY;
     bool _do_exposure = false;
+    char _sky_deg[32]{};
+    char _move_rem_deg[32]{};
 
     // movement
-    int64_t _to_ra = 0;
+    uint8_t _move_h = 0, _move_m = 0;
+    double _move_s = 0.0;
 
     void on_build(gh::Builder& b) {
         static byte tab;
@@ -391,33 +446,46 @@ private:
             upd.send();
         }
         b.Button_(F("main_but")).label(F("Run")).icon(F(_do_run? "f28d": "f144"))
-            .attach([this](){ this->_hub.sendAction(F("main_conf")); });
-        b.Label_(F("us")).value(0).label(F("us"));
+            .attach([this]() { this->_hub.sendAction(F("main_conf")); });
+        #ifdef _SHOW_US
+        b.Label_(F("us")).value(0).label(F("us")).fontSize(18);
+        #endif
         b.beginRow();
-        b.Time_(F("time")).value(0).disabled();
-        b.Label_(F("steps")).value(0).label(F("steps"));
+        b.Time_(F("time")).value(0).disabled().size(3).fontSize(18);
+        b.Label_(F("steps")).value(0).label(F("steps")).size(7).fontSize(18);
         b.endRow();
-        b.Time_(F("sky_ra")).value(0).label(F("RA")).disabled();
+        b.beginRow();
+        b.Time_(F("sky_ra")).value(0).label(F("RA")).disabled().size(3).fontSize(18);
+        b.Label_(F("sky_deg")).value(0).label(F("DEG")).disabled().size(7).fontSize(18);
+        b.endRow();
 
         b.Title(F("Movement"));
         b.beginRow();
-        b.Time_(F("move_ra"), &_to_ra).value(0).label(F("RA"));
-        b.Time_(F("move_rem_ra"), &_to_ra).value(0).label(F("RA remaining")).disabled();
+        b.Spinner_(F("move_h"), &_move_h).range(0, 23, 1).label(F("RA, h")).size(3);
+        b.Spinner_(F("move_m"), &_move_m).range(0, 59, 1).label(F("RA, m")).size(3);
+        b.Spinner_(F("move_s"), &_move_s).range(0.0, 60.0 - RA_SEC_PER_STEP, RA_SEC_PER_STEP, 3).label(F("RA, s")).size(4);
         b.endRow();
         b.beginRow();
-        b.Button_(F("move_bwd")).noLabel().icon(F("f049")).attach([this](){
-            auto x = (double)this->_to_ra / SEC_PER_STEP;
-            Serial.printf("<< %f\n", (float)x);
-            this->_tracker->move(-(int64_t)x);
+        b.Time_(F("move_rem_ra")).value(0).label(F("RA remaining")).disabled().size(3);
+        b.Label_(F("move_rem_deg")).value(0).label(F("DEG remaining")).disabled().size(7).fontSize(18);
+        b.endRow();
+        b.beginRow();
+        b.Button_(F("move_bwd")).noLabel().icon(F("f2ea")).size(3).attach([this]() {
+            this->_tracker->move(-llround(ra_to_asec(racomp_to_rasec(this->_move_h, this->_move_m, this->_move_s)) / SEC_PER_STEP));
         });
-        b.Button_(F("move_stop")).noLabel().icon(F("f04d")).attach([this](){
-            Serial.println("||");
+        b.Button_(F("move_stop")).noLabel().icon(F("f04d")).size(4).attach([this]() {
             this->_tracker->stop_move();
         });
-        b.Button_(F("move_fwd")).noLabel().icon(F("f050")).attach([this](){
-            auto x = (double)this->_to_ra / SEC_PER_STEP;
-            Serial.printf(">> %f\n", (float)x);
-            this->_tracker->move((int64_t)x);
+        b.Button_(F("move_fwd")).noLabel().icon(F("f2f9")).size(3).attach([this]() {
+            this->_tracker->move(llround(ra_to_asec(racomp_to_rasec(this->_move_h, this->_move_m, this->_move_s)) / SEC_PER_STEP));
+        });
+        b.endRow();
+        b.beginRow();
+        b.Button_(F("move_to")).label(F("move to")).icon(F("f78c")).size(1).attach([this]() {
+            this->_tracker->move_to(llround(ra_to_asec(racomp_to_rasec(this->_move_h, this->_move_m, this->_move_s)) / SEC_PER_STEP));
+        });
+        b.Button_(F("move_set")).label(F("set current")).icon(F("f111")).size(1).attach([this]() {
+            this->_tracker->position_steps = llround(ra_to_asec(racomp_to_rasec(this->_move_h, this->_move_m, this->_move_s)) / SEC_PER_STEP);
         });
         b.endRow();
 
@@ -448,7 +516,7 @@ private:
         b.Button_(F("capt_but"))
             .color(_do_exposure? gh::Colors::Blue: gh::Colors::Red)
             .label(F("Capture"))
-            .attach([this](){ this->_hub.sendAction(F("capt_conf")); });
+            .attach([this]() { this->_hub.sendAction(F("capt_conf")); });
         b.Title(F("Status"));
         b.beginRow();
         b.Label_(F("capt_status_shots")).label(F("shots remaining")).value(0);

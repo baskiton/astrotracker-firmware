@@ -1,9 +1,14 @@
 #include <settings.h>
-
-#include <GyverHub.h>
-#include <WiFi.h>
-
+#include <Arduino.h>
 #include <driver/timer.h>
+
+#include <FileData.h>
+#include <GyverHub.h>
+#include <LittleFS.h>
+#include <WiFi.h>
+#include <Wire.h>
+#include <I2Cdev.h>
+#include <MPU6050_6Axis_MotionApps20.h>
 
 // .env
 #define XSTR(x) #x
@@ -50,6 +55,92 @@ void calculate_stepper_timer(double sps, uint16_t &divider, uint64_t &alarm_valu
         }
     }
 }
+
+class DecMpu {
+public:
+    float ypr[3]{};   // yaw(Z), pitch(Y), roll(X)
+
+    void init() {
+        _mpu.initialize();
+        int16_t offsets[6];
+        FileData data(&LittleFS, "/mpu_offsets.dat", 'A', offsets, sizeof(offsets));
+        data.read();
+        _mpu.setXAccelOffset(offsets[0]);
+        _mpu.setYAccelOffset(offsets[1]);
+        _mpu.setZAccelOffset(offsets[2]);
+        _mpu.setXGyroOffset(offsets[3]);
+        _mpu.setYGyroOffset(offsets[4]);
+        _mpu.setZGyroOffset(offsets[5]);
+        Serial.println("Set offsets:");
+        _mpu.PrintActiveOffsets();
+
+        // DMP init
+        _mpu.dmpInitialize();
+        _mpu.setDMPEnabled(true);
+    }
+
+    void calibrate() {
+        Serial.println("\ncalibrate");
+        // load default accuracy
+        _mpu.setFullScaleAccelRange(MPU6050_ACCEL_FS_2);
+        _mpu.setFullScaleGyroRange(MPU6050_GYRO_FS_250);
+
+        // reset offsets
+        _mpu.setXAccelOffset(0);
+        _mpu.setYAccelOffset(0);
+        _mpu.setZAccelOffset(0);
+        _mpu.setXGyroOffset(0);
+        _mpu.setYGyroOffset(0);
+        _mpu.setZGyroOffset(0);
+
+        _mpu.CalibrateAccel();
+        _mpu.CalibrateGyro();
+
+        int16_t offsets[6] = {
+            _mpu.getXAccelOffset(),
+            _mpu.getYAccelOffset(),
+            _mpu.getZAccelOffset(),
+            _mpu.getXGyroOffset(),
+            _mpu.getYGyroOffset(),
+            _mpu.getZGyroOffset(),
+        };
+        FileData data(&LittleFS, "/mpu_offsets.dat", 'A', offsets, sizeof(offsets));
+        data.updateNow();
+        Serial.println("Set offsets:");
+        _mpu.PrintActiveOffsets();
+
+        // DMP init
+        _mpu.dmpInitialize();
+        _mpu.setDMPEnabled(true);
+    }
+
+    void tick() {
+        if (!_mpu.dmpGetCurrentFIFOPacket(_fifo_buf))
+            return;
+
+        _mpu.dmpGetQuaternion(&_q, _fifo_buf);
+
+        Quaternion q_tmp = _q_base.getProduct(_q);
+        VectorFloat gravity;
+        _mpu.dmpGetGravity(&gravity, &q_tmp);
+        _mpu.dmpGetYawPitchRoll(ypr, &q_tmp, &gravity);
+    }
+
+    void set_base(bool reset = false) {
+        if (reset)
+            _q_base = {1,0,0,0};
+        else {
+            // inverse
+            float n = _q.w*_q.w + _q.x*_q.x + _q.y*_q.y + _q.z*_q.z;    // norm
+            _q_base = {_q.w / n, -_q.x / n, -_q.y / n, -_q.z / n};
+        }
+    }
+
+private:
+    MPU6050 _mpu;
+    Quaternion _q{}, _q_base{};
+    uint8_t _fifo_buf[45]{};
+};
 
 // from esp-hal-timer.c
 struct hw_timer_s {
@@ -330,8 +421,10 @@ bool IRAM_ATTR shutter_timer_isr(AstroTracker *tracker) {
 class Interface {
 
 public:
-    void init(AstroTracker *tracker) {
+    void init(AstroTracker *tracker, DecMpu *mpu = nullptr) {
         _tracker = tracker;
+        if ((_mpu = mpu))
+            mpu->init();
 
         // подключение к WiFi..
 # ifdef TRACKER_WIFI_AP
@@ -365,6 +458,8 @@ public:
             if (_do_run)
                 _runned_us = us;
 
+            _mpu->tick();
+
             // main
             uint64_t t = (_runned_us - _run_time_us) / 1000000L;
             gh::Update upd(&_hub);
@@ -379,6 +474,13 @@ public:
             sec_to_comp(_tracker->position_steps * SEC_PER_STEP, d, m, s);
             snprintf(_sky_deg, sizeof(_sky_deg), "%3i° %2i' %6.03f\"", d, m, s);
             upd.update(F("sky_deg")).value(_sky_deg);
+            sec_to_comp(degrees(_mpu->ypr[1]) * 3600, d, m, s);
+            snprintf(_sky_deg, sizeof(_sky_deg), "%3i° %2i' %6.03f\"", d, m, s);
+            upd.update(F("sky_dec")).value(_sky_deg);
+            upd.update(F("dec_y")).value(degrees(_mpu->ypr[0]));
+            upd.update(F("dec_p")).value(degrees(_mpu->ypr[1]));
+            upd.update(F("dec_r")).value(degrees(_mpu->ypr[2]));
+
             // main-movement
             sec_to_comp(_tracker->move_steps * SEC_PER_STEP, d, m, s);
             upd.update(F("move_rem_ra")).value(asec_to_ra(_tracker->move_steps * SEC_PER_STEP));
@@ -405,6 +507,8 @@ public:
 private:
     GyverHub _hub;
     AstroTracker *_tracker = nullptr;
+    DecMpu *_mpu = nullptr;
+
     uint64_t _upd_intv_us = 1000000;
     uint64_t _upd_tmr_us = 0;
     uint64_t _run_time_us = 0;
@@ -424,7 +528,7 @@ private:
 
     void on_build(gh::Builder& b) {
         static byte tab;
-        if (b.Tabs(&tab).text(F("Main;Capture;Network")).click())
+        if (b.Tabs(&tab).text(F("Main;Capture;DEC;Network")).click())
             b.refresh();
 
         b.show(tab == 0);   // Main
@@ -456,8 +560,9 @@ private:
         b.endRow();
         b.beginRow();
         b.Time_(F("sky_ra")).value(0).label(F("RA")).disabled().size(3).fontSize(18);
-        b.Label_(F("sky_deg")).value(0).label(F("DEG")).disabled().size(7).fontSize(18);
+        b.Label_(F("sky_deg")).value(0).label(F("dec")).disabled().size(7).fontSize(18);
         b.endRow();
+        b.Label_(F("sky_dec")).value(0).label(F("DEC")).disabled().fontSize(18);
 
         b.Title(F("Movement"));
         b.beginRow();
@@ -523,7 +628,26 @@ private:
         b.Label_(F("capt_status_state")).label(F("state"));
         b.endRow();
 
-        b.show(tab == 2);   // Network
+        b.show(tab == 2);   // DEC control
+        b.beginRow();
+        b.Label_(F("dec_y")).label(F("yaw")).value(_mpu->ypr[0]);
+        b.Label_(F("dec_p")).label(F("pitch")).value(_mpu->ypr[1]);
+        b.Label_(F("dec_r")).label(F("roll")).value(_mpu->ypr[2]);
+        b.endRow();
+        b.beginRow();
+        if (b.Confirm_(F("dec_calib")).text(F("Are you sure you want to start calibration?\n"
+                                              "This may take a long time.\nMake sure tracking "
+                                              "is turned off before starting.")).click()) {
+            if (b.build.value) {
+                _mpu->set_base(true);
+                _mpu->calibrate();
+            }
+        }
+        b.Button().label(F("Calibrate")).icon(F("f05b")).attach([this]() { this->_hub.sendAction(F("dec_calib")); });
+        b.Button().label(F("Set base")).icon(F("f015")).attach([this]() { _mpu->set_base(); });
+        b.endRow();
+
+        b.show(tab == 3);   // Network
         b.Switch().label(F("AP"));
         b.Input().label(F("SSID"));
         b.Pass();
@@ -549,12 +673,15 @@ private:
 
 
 AstroTracker tracker(STEP_S_PIN, STEP_D_PIN, 1, SHUTTER_PIN, STEP_E_PIN);
+DecMpu mpu;
 Interface iface;
 
 void setup() {
     Serial.begin(115200);
+    Wire.begin();
+    LittleFS.begin();
     Serial.println(F("setup"));
-    iface.init(&tracker);
+    iface.init(&tracker, &mpu);
     tracker.enable(true);
 }
 

@@ -2,7 +2,7 @@
 #include <Arduino.h>
 #include <driver/timer.h>
 
-#include <FileData.h>
+#include <FS.h>
 #include <GyverHub.h>
 #include <LittleFS.h>
 #include <WiFi.h>
@@ -10,20 +10,217 @@
 #include <I2Cdev.h>
 #include <MPU6050_6Axis_MotionApps20.h>
 
-// .env
-#define XSTR(x) #x
-#define STR(x) F(XSTR(x))
+#include "catalogues.hpp"
 
 
-void sec_to_comp(double sec, int &d, int &m, double &s) {
+void on_wifi_sta_ip(arduino_event_t *event) {
+//    event->event_info.wifi_sta_connected;
+    Serial.print(F("\nConnected: "));
+    Serial.println(WiFi.localIP());
+}
+
+void on_wifi_sta_dis(arduino_event_t *event) {
+    auto e = (wifi_err_reason_t)event->event_info.wifi_sta_disconnected.reason;
+    auto *s = F("UNKNOWN");
+    switch (e) {
+        case WIFI_REASON_UNSPECIFIED:
+            s = F("UNSPECIFIED");
+            break;
+        case WIFI_REASON_AUTH_EXPIRE:
+            s = F("AUTH_EXPIRE");
+            break;
+        case WIFI_REASON_AUTH_LEAVE:
+            s = F("AUTH_LEAVE");
+            break;
+        case WIFI_REASON_ASSOC_EXPIRE:
+            s = F("ASSOC_EXPIRE");
+            break;
+        case WIFI_REASON_ASSOC_TOOMANY:
+            s = F("ASSOC_TOOMANY");
+            break;
+        case WIFI_REASON_NOT_AUTHED:
+            s = F("NOT_AUTHED");
+            break;
+        case WIFI_REASON_NOT_ASSOCED:
+            s = F("NOT_ASSOCED");
+            break;
+        case WIFI_REASON_ASSOC_LEAVE:
+            s = F("ASSOC_LEAVE");
+            break;
+        case WIFI_REASON_ASSOC_NOT_AUTHED:
+            s = F("ASSOC_NOT_AUTHED");
+            break;
+        case WIFI_REASON_DISASSOC_PWRCAP_BAD:
+            s = F("DISASSOC_PWRCAP_BAD");
+            break;
+        case WIFI_REASON_DISASSOC_SUPCHAN_BAD:
+            s = F("DISASSOC_SUPCHAN_BAD");
+            break;
+        case WIFI_REASON_BSS_TRANSITION_DISASSOC:
+            s = F("BSS_TRANSITION_DISASSOC");
+            break;
+        case WIFI_REASON_IE_INVALID:
+            s = F("IE_INVALID");
+            break;
+        case WIFI_REASON_MIC_FAILURE:
+            s = F("MIC_FAILURE");
+            break;
+        case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+            s = F("4WAY_HANDSHAKE_TIMEOUT");
+            break;
+        case WIFI_REASON_GROUP_KEY_UPDATE_TIMEOUT:
+            s = F("GROUP_KEY_UPDATE_TIMEOUT");
+            break;
+        case WIFI_REASON_IE_IN_4WAY_DIFFERS:
+            s = F("IE_IN_4WAY_DIFFERS");
+            break;
+        case WIFI_REASON_GROUP_CIPHER_INVALID:
+            s = F("GROUP_CIPHER_INVALID");
+            break;
+        case WIFI_REASON_PAIRWISE_CIPHER_INVALID:
+            s = F("PAIRWISE_CIPHER_INVALID");
+            break;
+        case WIFI_REASON_AKMP_INVALID:
+            s = F("AKMP_INVALID");
+            break;
+        case WIFI_REASON_UNSUPP_RSN_IE_VERSION:
+            s = F("UNSUPP_RSN_IE_VERSION");
+            break;
+        case WIFI_REASON_INVALID_RSN_IE_CAP:
+            s = F("INVALID_RSN_IE_CAP");
+            break;
+        case WIFI_REASON_802_1X_AUTH_FAILED:
+            s = F("802_1X_AUTH_FAILED");
+            break;
+        case WIFI_REASON_CIPHER_SUITE_REJECTED:
+            s = F("CIPHER_SUITE_REJECTED");
+            break;
+        case WIFI_REASON_TDLS_PEER_UNREACHABLE:
+            s = F("TDLS_PEER_UNREACHABLE");
+            break;
+        case WIFI_REASON_TDLS_UNSPECIFIED:
+            s = F("TDLS_UNSPECIFIED");
+            break;
+        case WIFI_REASON_SSP_REQUESTED_DISASSOC:
+            s = F("SSP_REQUESTED_DISASSOC");
+            break;
+        case WIFI_REASON_NO_SSP_ROAMING_AGREEMENT:
+            s = F("NO_SSP_ROAMING_AGREEMENT");
+            break;
+        case WIFI_REASON_BAD_CIPHER_OR_AKM:
+            s = F("BAD_CIPHER_OR_AKM");
+            break;
+        case WIFI_REASON_NOT_AUTHORIZED_THIS_LOCATION:
+            s = F("NOT_AUTHORIZED_THIS_LOCATION");
+            break;
+        case WIFI_REASON_SERVICE_CHANGE_PERCLUDES_TS:
+            s = F("SERVICE_CHANGE_PERCLUDES_TS");
+            break;
+        case WIFI_REASON_UNSPECIFIED_QOS:
+            s = F("UNSPECIFIED_QOS");
+            break;
+        case WIFI_REASON_NOT_ENOUGH_BANDWIDTH:
+            s = F("NOT_ENOUGH_BANDWIDTH");
+            break;
+        case WIFI_REASON_MISSING_ACKS:
+            s = F("MISSING_ACKS");
+            break;
+        case WIFI_REASON_EXCEEDED_TXOP:
+            s = F("EXCEEDED_TXOP");
+            break;
+        case WIFI_REASON_STA_LEAVING:
+            s = F("STA_LEAVING");
+            break;
+        case WIFI_REASON_END_BA:
+            s = F("END_BA");
+            break;
+        case WIFI_REASON_UNKNOWN_BA:
+            s = F("UNKNOWN_BA");
+            break;
+        case WIFI_REASON_TIMEOUT:
+            s = F("TIMEOUT");
+            break;
+        case WIFI_REASON_PEER_INITIATED:
+            s = F("PEER_INITIATED");
+            break;
+        case WIFI_REASON_AP_INITIATED:
+            s = F("AP_INITIATED");
+            break;
+        case WIFI_REASON_INVALID_FT_ACTION_FRAME_COUNT:
+            s = F("INVALID_FT_ACTION_FRAME_COUNT");
+            break;
+        case WIFI_REASON_INVALID_PMKID:
+            s = F("INVALID_PMKID");
+            break;
+        case WIFI_REASON_INVALID_MDE:
+            s = F("INVALID_MDE");
+            break;
+        case WIFI_REASON_INVALID_FTE:
+            s = F("INVALID_FTE");
+            break;
+        case WIFI_REASON_TRANSMISSION_LINK_ESTABLISH_FAILED:
+            s = F("TRANSMISSION_LINK_ESTABLISH_FAILED");
+            break;
+        case WIFI_REASON_ALTERATIVE_CHANNEL_OCCUPIED:
+            s = F("ALTERATIVE_CHANNEL_OCCUPIED");
+            break;
+        case WIFI_REASON_BEACON_TIMEOUT:
+            s = F("BEACON_TIMEOUT");
+            break;
+        case WIFI_REASON_NO_AP_FOUND:
+            s = F("NO_AP_FOUND");
+            break;
+        case WIFI_REASON_AUTH_FAIL:
+            s = F("AUTH_FAIL");
+            break;
+        case WIFI_REASON_ASSOC_FAIL:
+            s = F("ASSOC_FAIL");
+            break;
+        case WIFI_REASON_HANDSHAKE_TIMEOUT:
+            s = F("HANDSHAKE_TIMEOUT");
+            break;
+        case WIFI_REASON_CONNECTION_FAIL:
+            s = F("CONNECTION_FAIL");
+            break;
+        case WIFI_REASON_AP_TSF_RESET:
+            s = F("AP_TSF_RESET");
+            break;
+        case WIFI_REASON_ROAMING:
+            s = F("ROAMING");
+            break;
+        case WIFI_REASON_ASSOC_COMEBACK_TIME_TOO_LONG:
+            s = F("ASSOC_COMEBACK_TIME_TOO_LONG");
+            break;
+        case WIFI_REASON_SA_QUERY_TIMEOUT:
+            s = F("SA_QUERY_TIMEOUT");
+            break;
+    }
+    Serial.print(F("WiFi disconnect: "));
+    Serial.println(s);
+//    Serial.println("Trying to reconnect...");
+//    WiFi.reconnect();
+//    WiFi.begin(_sta_ssid, _sta_pass);
+}
+
+void sec_to_comp(double sec, int &d, int &m, double &s, bool signing = false) {
+    if (isnan(sec)) {
+        s = d = m = 0;
+        return;
+    }
     double dd = sec / 3600.0;
     d = (int)dd;
     m = (int)((dd - d) * 60);
     s = (dd - d - m / 60.0) * 3600.0;
+    if (signing) {
+        int sign = (d < 0 || m < 0 || s < 0)? -1 : 1;
+        d = sign * abs(d);
+        m = abs(m);
+        s = abs(s);
+    }
 }
 
-void sec_to_comp(double sec, int &d, int &m, int &s) {
-    sec_to_comp(sec, d, m, (double &)s);
+void sec_to_comp(double sec, int &d, int &m, int &s, bool signing = false) {
+    sec_to_comp(sec, d, m, (double &)s, signing);
 }
 
 int comp_to_sec(int d, int m, int s) {
@@ -62,21 +259,27 @@ public:
 
     void init() {
         _mpu.initialize();
-        int16_t offsets[6];
-        FileData data(&LittleFS, "/mpu_offsets.dat", 'A', offsets, sizeof(offsets));
-        data.read();
-        _mpu.setXAccelOffset(offsets[0]);
-        _mpu.setYAccelOffset(offsets[1]);
-        _mpu.setZAccelOffset(offsets[2]);
-        _mpu.setXGyroOffset(offsets[3]);
-        _mpu.setYGyroOffset(offsets[4]);
-        _mpu.setZGyroOffset(offsets[5]);
-        Serial.println("Set offsets:");
-        _mpu.PrintActiveOffsets();
+        int16_t offsets[6]{};
+
+        File f = LittleFS.open(F("/mpu_offsets.dat"), "r");
+        if (f) {
+            f.read((uint8_t *)offsets, sizeof(offsets));
+            f.close();
+            _mpu.setXAccelOffset(offsets[0]);
+            _mpu.setYAccelOffset(offsets[1]);
+            _mpu.setZAccelOffset(offsets[2]);
+            _mpu.setXGyroOffset(offsets[3]);
+            _mpu.setYGyroOffset(offsets[4]);
+            _mpu.setZGyroOffset(offsets[5]);
+            Serial.println("Set reads:");
+            _mpu.PrintActiveOffsets();
+        }
 
         // DMP init
-        _mpu.dmpInitialize();
-        _mpu.setDMPEnabled(true);
+        if (!_mpu.dmpInitialize()) {
+            _mpu.setDMPEnabled(true);
+            Serial.println(F("DMP inited"));
+        }
     }
 
     void calibrate() {
@@ -104,8 +307,13 @@ public:
             _mpu.getYGyroOffset(),
             _mpu.getZGyroOffset(),
         };
-        FileData data(&LittleFS, "/mpu_offsets.dat", 'A', offsets, sizeof(offsets));
-        data.updateNow();
+
+        File f = LittleFS.open(F("/mpu_offsets.dat"), "w");
+        if (f) {
+            f.write((uint8_t *)offsets, sizeof(offsets));
+            f.close();
+            Serial.println("Offsets writes");
+        }
         Serial.println("Set offsets:");
         _mpu.PrintActiveOffsets();
 
@@ -422,23 +630,27 @@ class Interface {
 
 public:
     void init(AstroTracker *tracker, DecMpu *mpu = nullptr) {
+        if (!_cats.init()) {
+            Serial.println("FS not inited");
+            Serial.println(F_STR(HR_CAT_NAME));
+            Serial.println(F_STR(STARNAMES_HR_NAME));
+        }
         _tracker = tracker;
         if ((_mpu = mpu))
             mpu->init();
 
         // подключение к WiFi..
+        Serial.print(F("MAC: "));
+        Serial.println(WiFi.macAddress());
+
+        WiFi.onEvent(on_wifi_sta_ip, ARDUINO_EVENT_WIFI_STA_GOT_IP);
+        WiFi.onEvent(on_wifi_sta_dis, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+        WiFi.mode(WIFI_AP_STA);
+
 # ifdef TRACKER_WIFI_AP
-        WiFi.mode(WIFI_AP);
-        WiFi.softAP(STR(SSID_AP), STR(PASS_AP));
+        WiFi.softAP(_ap_ssid, _ap_pass);
 # else
-        WiFi.mode(WIFI_STA);
-        WiFi.begin(STR(SSID_TO), STR(PASS_TO));
-        while (WiFi.status() != WL_CONNECTED) {
-            delay(500);
-            Serial.print(".");
-        }
-        Serial.print(F("\nConnected: "));
-        Serial.println(WiFi.localIP());
+        WiFi.begin(F_STR(STA_SSID), F_STR(STA_PASS));
 # endif
 
         Serial.print(F("ID: "));
@@ -453,7 +665,7 @@ public:
     void tick(uint64_t us) {
         _hub.tick();
 
-        if ((us - _upd_tmr_us) >= _upd_intv_us) {
+        if (_hub.focused() && (us - _upd_tmr_us) >= _upd_intv_us) {
             _upd_tmr_us = us;
             if (_do_run)
                 _runned_us = us;
@@ -508,11 +720,13 @@ private:
     GyverHub _hub;
     AstroTracker *_tracker = nullptr;
     DecMpu *_mpu = nullptr;
+    Catalogues _cats;
 
     uint64_t _upd_intv_us = 1000000;
     uint64_t _upd_tmr_us = 0;
     uint64_t _run_time_us = 0;
     uint64_t _runned_us = 0;
+    uint32_t _unix_ts = 0;
     bool _do_run = false;
     int _images = 0;
     int _exposure_s = CAMERA_EXPOSURE;
@@ -523,8 +737,22 @@ private:
     char _move_rem_deg[32]{};
 
     // movement
-    uint8_t _move_h = 0, _move_m = 0;
-    double _move_s = 0.0;
+    int _move_ra_h = 0, _move_ra_m = 0, _move_dec_d = 0, _move_dec_m = 0;
+    double _move_ra_s = 0.0, _move_dec_s = 0.0;
+    uint16_t _hr = 1;
+    uint16_t _messier = 1;
+
+    // network
+    String _ap_ssid{F_STR(AP_SSID)},
+        _ap_pass{F_STR(AP_PASS)},
+        _sta_ssid{F_STR(STA_SSID)},
+        _sta_pass{F_STR(STA_PASS)};
+
+# ifdef TRACKER_WIFI_AP
+    bool _ap_on = true, _sta_on = false;
+# else
+    bool _ap_on = false, _sta_on = true;
+# endif
 
     void on_build(gh::Builder& b) {
         static byte tab;
@@ -560,38 +788,90 @@ private:
         b.endRow();
         b.beginRow();
         b.Time_(F("sky_ra")).value(0).label(F("RA")).disabled().size(3).fontSize(18);
-        b.Label_(F("sky_deg")).value(0).label(F("dec")).disabled().size(7).fontSize(18);
+        b.Label_(F("sky_deg")).value(0).label(F("deg")).disabled().size(7).fontSize(18);
         b.endRow();
         b.Label_(F("sky_dec")).value(0).label(F("DEC")).disabled().fontSize(18);
 
-        b.Title(F("Movement"));
+        b.Title(F("Movement")).fontSize(18);
         b.beginRow();
-        b.Spinner_(F("move_h"), &_move_h).range(0, 23, 1).label(F("RA, h")).size(3);
-        b.Spinner_(F("move_m"), &_move_m).range(0, 59, 1).label(F("RA, m")).size(3);
-        b.Spinner_(F("move_s"), &_move_s).range(0.0, 60.0 - RA_SEC_PER_STEP, RA_SEC_PER_STEP, 3).label(F("RA, s")).size(4);
+        b.Spinner_(F("move_ra_h"), &_move_ra_h).range(0, 23, 1).label(F("RA, h")).size(3);
+        b.Spinner_(F("move_ra_m"), &_move_ra_m).range(0, 59, 1).label(F("RA, m")).size(3);
+        b.Spinner_(F("move_ra_s"), &_move_ra_s).range(0.0, 60.0 - RA_SEC_PER_STEP, RA_SEC_PER_STEP, 3).label(F("RA, s")).size(4);
+        b.endRow();
+        b.beginRow();
+        b.Spinner_(F("move_dec_d"), &_move_dec_d).range(-90, 90, 1).label(F("DEC, deg")).size(3).disabled();
+        b.Spinner_(F("move_dec_m"), &_move_dec_m).range(-60, 60, 1).label(F("DEC, m")).size(3).disabled();
+        b.Spinner_(F("move_dec_s"), &_move_dec_s).range(-60, 60, 1).label(F("DEC, s")).size(4).disabled();
         b.endRow();
         b.beginRow();
         b.Time_(F("move_rem_ra")).value(0).label(F("RA remaining")).disabled().size(3);
-        b.Label_(F("move_rem_deg")).value(0).label(F("DEG remaining")).disabled().size(7).fontSize(18);
+        b.Label_(F("move_rem_deg")).value(0).label(F("RA remaining (deg)")).disabled().size(7).fontSize(18);
         b.endRow();
         b.beginRow();
         b.Button_(F("move_bwd")).noLabel().icon(F("f2ea")).size(3).attach([this]() {
-            this->_tracker->move(-llround(ra_to_asec(racomp_to_rasec(this->_move_h, this->_move_m, this->_move_s)) / SEC_PER_STEP));
+            this->_tracker->move(-llround(ra_to_asec(racomp_to_rasec(this->_move_ra_h, this->_move_ra_m, this->_move_ra_s)) / SEC_PER_STEP));
         });
         b.Button_(F("move_stop")).noLabel().icon(F("f04d")).size(4).attach([this]() {
             this->_tracker->stop_move();
         });
         b.Button_(F("move_fwd")).noLabel().icon(F("f2f9")).size(3).attach([this]() {
-            this->_tracker->move(llround(ra_to_asec(racomp_to_rasec(this->_move_h, this->_move_m, this->_move_s)) / SEC_PER_STEP));
+            this->_tracker->move(llround(ra_to_asec(racomp_to_rasec(this->_move_ra_h, this->_move_ra_m, this->_move_ra_s)) / SEC_PER_STEP));
         });
         b.endRow();
         b.beginRow();
-        b.Button_(F("move_to")).label(F("move to")).icon(F("f78c")).size(1).attach([this]() {
-            this->_tracker->move_to(llround(ra_to_asec(racomp_to_rasec(this->_move_h, this->_move_m, this->_move_s)) / SEC_PER_STEP));
+        b.Button().label(F("move to")).icon(F("f78c")).size(1).attach([this]() {
+        this->_tracker->move_to(llround(ra_to_asec(racomp_to_rasec(this->_move_ra_h, this->_move_ra_m, this->_move_ra_s)) / SEC_PER_STEP));
         });
-        b.Button_(F("move_set")).label(F("set current")).icon(F("f111")).size(1).attach([this]() {
-            this->_tracker->position_steps = llround(ra_to_asec(racomp_to_rasec(this->_move_h, this->_move_m, this->_move_s)) / SEC_PER_STEP);
+        b.Button().label(F("set current")).icon(F("f111")).size(1).attach([this]() {
+            this->_tracker->position_steps = llround(ra_to_asec(racomp_to_rasec(this->_move_ra_h, this->_move_ra_m, this->_move_ra_s)) / SEC_PER_STEP);
         });
+        b.endRow();
+        b.Title(F("Catalogues")).fontSize(18);
+        b.beginRow();
+        if (b.Spinner_(F("hr_num"), &_hr).label(F("HR number (1 - 9110)")).range(1, 9110, 1).size(3).click()) {
+            cat_t entry;
+            _cats.by_hr(_hr, _unix_ts, entry);
+            ra_dec_set(entry);
+        }
+        if (b.Select().label(F("Star names")).text(F_STR(STARNAMES)).size(7).click()) {
+            cat_t entry;
+            _hr = _cats.by_satname_idx((uint16_t)b.build.value, _unix_ts, entry);
+            ra_dec_set(entry);
+            _hub.update(F("hr_num")).value(_hr);
+        }
+        b.endRow();
+        b.beginRow();
+        if (b.Spinner_(F("m_num"), &_messier).label(F("Messier (1 - 110)")).range(1, 110, 1).size(3).click()) {
+            cat_t entry;
+            _cats.by_messier(_messier, _unix_ts, entry);
+            ra_dec_set(entry);
+        }
+        if (b.Select().label(F("Messier names")).text(F_STR(MESSIER_NAMES)).size(7).click()) {
+            cat_t entry;
+            _messier = _cats.by_m_name_idx((uint16_t)b.build.value, _unix_ts, entry);
+            ra_dec_set(entry);
+            _hub.update(F("m_num")).value(_messier);
+        }
+        b.endRow();
+        b.beginRow();
+        b.beginCol(3);
+        if (b.Spinner_(F("ngc_num")).label(F("NGC 2000 (1 - 7840)")).range(1, NGC_MAX, 1).size(1).click()) {
+            cat_t entry;
+            _cats.by_ngc((uint16_t)b.build.value, _unix_ts, entry);
+            ra_dec_set(entry);
+        }
+        if (b.Spinner_(F("ic_num")).label(F("IC (1 - 5386)")).range(1, IC_MAX, 1).size(1).click()) {
+            cat_t entry;
+            _cats.by_ic((uint16_t)b.build.value, _unix_ts, entry);
+            ra_dec_set(entry);
+        }
+        b.endCol();
+        if (b.Select().label(F("NGC/IC names")).text(F_STR(NGCIC_NAMES)).size(7).click()) {
+            cat_t entry;
+            int16_t ngcic = _cats.by_ngcic_name_idx((uint16_t)b.build.value, _unix_ts, entry);
+            ra_dec_set(entry);
+            _hub.update((ngcic > 0)? F("ngc_num"): F("ic_num")).value(abs(ngcic));
+        }
         b.endRow();
 
         b.show(tab == 1);   // Capture
@@ -648,10 +928,33 @@ private:
         b.endRow();
 
         b.show(tab == 3);   // Network
-        b.Switch().label(F("AP"));
-        b.Input().label(F("SSID"));
-        b.Pass();
-        b.Button().label(F("Connect"));
+        b.beginRow();
+        b.Title(F("AP"));
+        if (b.Switch(&_ap_on).click()) {
+            int m = (_ap_on? WIFI_AP: 0) | (_sta_on? WIFI_STA: 0);
+            WiFi.mode((wifi_mode_t)m);
+            if (_ap_on)
+                WiFi.softAP(_ap_ssid, _ap_pass);
+        }
+        b.endRow();
+        b.Input_(F("ap_ssid"), &_ap_ssid).label(F("SSID")).value(F_STR(AP_SSID));
+        b.Pass_(F("ap_pass"), &_ap_pass).value(F_STR(AP_PASS));
+        if (b.Button().label(F("RUN")).click())
+            WiFi.softAP(_ap_ssid, _ap_pass);
+
+        b.beginRow();
+        b.Title(F("STA"));
+        if (b.Switch(&_sta_on).click()) {
+            int m = (_ap_on? WIFI_AP: 0) | (_sta_on? WIFI_STA: 0);
+            WiFi.mode((wifi_mode_t)m);
+            if (_sta_on)
+                WiFi.begin(_sta_ssid, _sta_pass);
+        }
+        b.endRow();
+        b.Input_(F("sta_ssid"), &_sta_ssid).label(F("SSID"));//.value(F_STR(STA_SSID));
+        b.Pass_(F("sta_pass"), &_sta_pass);//.value(F_STR(STA_PASS));
+        if (b.Button().label(F("Connect")).click())
+            WiFi.begin(_sta_ssid, _sta_pass);
 
         b.show();
     }
@@ -667,7 +970,19 @@ private:
         upd.send();
     }
 
+    void ra_dec_set(cat_t &entry) {
+        sec_to_comp(entry.ra, this->_move_ra_h, this->_move_ra_m, this->_move_ra_s);
+        sec_to_comp(entry.dec, this->_move_dec_d, this->_move_dec_m, this->_move_dec_s, true);
+        _hub.update(F("move_ra_h")).value(this->_move_ra_h);
+        _hub.update(F("move_ra_m")).value(this->_move_ra_m);
+        _hub.update(F("move_ra_s")).value(this->_move_ra_s);
+        _hub.update(F("move_dec_d")).value(this->_move_dec_d);
+        _hub.update(F("move_dec_m")).value(this->_move_dec_m);
+        _hub.update(F("move_dec_s")).value(this->_move_dec_s);
+    }
+
     void on_unix(uint32_t stamp) {
+        _unix_ts = stamp;
     }
 };
 

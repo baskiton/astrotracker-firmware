@@ -1,5 +1,10 @@
 #pragma once
 
+// .env
+#define XSTR(x) #x
+#define F_STR(x) F(XSTR(x))
+#define STR(x) XSTR(x)
+
 // TRACKER
 #define TRACKER_WIFI_AP
 // #define _SHOW_US
@@ -75,7 +80,7 @@
 
 // PORTAL
 // #define GH_FILE_PORTAL     // загружать сайт из памяти есп (положи файлы в папку /hub/) (для esp)
-#define GH_INCLUDE_PORTAL  // включить сайт в память программы, ~50кБ (не нужно загружать файлы в память) (для esp)
+// #define GH_INCLUDE_PORTAL  // включить сайт в память программы, ~50кБ (не нужно загружать файлы в память) (для esp)
 
 // HTTP
 // #define GH_PUBLIC_PATH "/www"          // путь к папке с файлами с HTTP доступом (для esp)

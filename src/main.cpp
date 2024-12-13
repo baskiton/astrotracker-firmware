@@ -23,177 +23,177 @@ void on_wifi_sta_dis(arduino_event_t *event) {
     auto e = (wifi_err_reason_t)event->event_info.wifi_sta_disconnected.reason;
     auto *s = F("UNKNOWN");
     switch (e) {
-        case WIFI_REASON_UNSPECIFIED:
-            s = F("UNSPECIFIED");
-            break;
-        case WIFI_REASON_AUTH_EXPIRE:
-            s = F("AUTH_EXPIRE");
-            break;
-        case WIFI_REASON_AUTH_LEAVE:
-            s = F("AUTH_LEAVE");
-            break;
-        case WIFI_REASON_ASSOC_EXPIRE:
-            s = F("ASSOC_EXPIRE");
-            break;
-        case WIFI_REASON_ASSOC_TOOMANY:
-            s = F("ASSOC_TOOMANY");
-            break;
-        case WIFI_REASON_NOT_AUTHED:
-            s = F("NOT_AUTHED");
-            break;
-        case WIFI_REASON_NOT_ASSOCED:
-            s = F("NOT_ASSOCED");
-            break;
-        case WIFI_REASON_ASSOC_LEAVE:
-            s = F("ASSOC_LEAVE");
-            break;
-        case WIFI_REASON_ASSOC_NOT_AUTHED:
-            s = F("ASSOC_NOT_AUTHED");
-            break;
-        case WIFI_REASON_DISASSOC_PWRCAP_BAD:
-            s = F("DISASSOC_PWRCAP_BAD");
-            break;
-        case WIFI_REASON_DISASSOC_SUPCHAN_BAD:
-            s = F("DISASSOC_SUPCHAN_BAD");
-            break;
-        case WIFI_REASON_BSS_TRANSITION_DISASSOC:
-            s = F("BSS_TRANSITION_DISASSOC");
-            break;
-        case WIFI_REASON_IE_INVALID:
-            s = F("IE_INVALID");
-            break;
-        case WIFI_REASON_MIC_FAILURE:
-            s = F("MIC_FAILURE");
-            break;
-        case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
-            s = F("4WAY_HANDSHAKE_TIMEOUT");
-            break;
-        case WIFI_REASON_GROUP_KEY_UPDATE_TIMEOUT:
-            s = F("GROUP_KEY_UPDATE_TIMEOUT");
-            break;
-        case WIFI_REASON_IE_IN_4WAY_DIFFERS:
-            s = F("IE_IN_4WAY_DIFFERS");
-            break;
-        case WIFI_REASON_GROUP_CIPHER_INVALID:
-            s = F("GROUP_CIPHER_INVALID");
-            break;
-        case WIFI_REASON_PAIRWISE_CIPHER_INVALID:
-            s = F("PAIRWISE_CIPHER_INVALID");
-            break;
-        case WIFI_REASON_AKMP_INVALID:
-            s = F("AKMP_INVALID");
-            break;
-        case WIFI_REASON_UNSUPP_RSN_IE_VERSION:
-            s = F("UNSUPP_RSN_IE_VERSION");
-            break;
-        case WIFI_REASON_INVALID_RSN_IE_CAP:
-            s = F("INVALID_RSN_IE_CAP");
-            break;
-        case WIFI_REASON_802_1X_AUTH_FAILED:
-            s = F("802_1X_AUTH_FAILED");
-            break;
-        case WIFI_REASON_CIPHER_SUITE_REJECTED:
-            s = F("CIPHER_SUITE_REJECTED");
-            break;
-        case WIFI_REASON_TDLS_PEER_UNREACHABLE:
-            s = F("TDLS_PEER_UNREACHABLE");
-            break;
-        case WIFI_REASON_TDLS_UNSPECIFIED:
-            s = F("TDLS_UNSPECIFIED");
-            break;
-        case WIFI_REASON_SSP_REQUESTED_DISASSOC:
-            s = F("SSP_REQUESTED_DISASSOC");
-            break;
-        case WIFI_REASON_NO_SSP_ROAMING_AGREEMENT:
-            s = F("NO_SSP_ROAMING_AGREEMENT");
-            break;
-        case WIFI_REASON_BAD_CIPHER_OR_AKM:
-            s = F("BAD_CIPHER_OR_AKM");
-            break;
-        case WIFI_REASON_NOT_AUTHORIZED_THIS_LOCATION:
-            s = F("NOT_AUTHORIZED_THIS_LOCATION");
-            break;
-        case WIFI_REASON_SERVICE_CHANGE_PERCLUDES_TS:
-            s = F("SERVICE_CHANGE_PERCLUDES_TS");
-            break;
-        case WIFI_REASON_UNSPECIFIED_QOS:
-            s = F("UNSPECIFIED_QOS");
-            break;
-        case WIFI_REASON_NOT_ENOUGH_BANDWIDTH:
-            s = F("NOT_ENOUGH_BANDWIDTH");
-            break;
-        case WIFI_REASON_MISSING_ACKS:
-            s = F("MISSING_ACKS");
-            break;
-        case WIFI_REASON_EXCEEDED_TXOP:
-            s = F("EXCEEDED_TXOP");
-            break;
-        case WIFI_REASON_STA_LEAVING:
-            s = F("STA_LEAVING");
-            break;
-        case WIFI_REASON_END_BA:
-            s = F("END_BA");
-            break;
-        case WIFI_REASON_UNKNOWN_BA:
-            s = F("UNKNOWN_BA");
-            break;
-        case WIFI_REASON_TIMEOUT:
-            s = F("TIMEOUT");
-            break;
-        case WIFI_REASON_PEER_INITIATED:
-            s = F("PEER_INITIATED");
-            break;
-        case WIFI_REASON_AP_INITIATED:
-            s = F("AP_INITIATED");
-            break;
-        case WIFI_REASON_INVALID_FT_ACTION_FRAME_COUNT:
-            s = F("INVALID_FT_ACTION_FRAME_COUNT");
-            break;
-        case WIFI_REASON_INVALID_PMKID:
-            s = F("INVALID_PMKID");
-            break;
-        case WIFI_REASON_INVALID_MDE:
-            s = F("INVALID_MDE");
-            break;
-        case WIFI_REASON_INVALID_FTE:
-            s = F("INVALID_FTE");
-            break;
-        case WIFI_REASON_TRANSMISSION_LINK_ESTABLISH_FAILED:
-            s = F("TRANSMISSION_LINK_ESTABLISH_FAILED");
-            break;
-        case WIFI_REASON_ALTERATIVE_CHANNEL_OCCUPIED:
-            s = F("ALTERATIVE_CHANNEL_OCCUPIED");
-            break;
-        case WIFI_REASON_BEACON_TIMEOUT:
-            s = F("BEACON_TIMEOUT");
-            break;
-        case WIFI_REASON_NO_AP_FOUND:
-            s = F("NO_AP_FOUND");
-            break;
-        case WIFI_REASON_AUTH_FAIL:
-            s = F("AUTH_FAIL");
-            break;
-        case WIFI_REASON_ASSOC_FAIL:
-            s = F("ASSOC_FAIL");
-            break;
-        case WIFI_REASON_HANDSHAKE_TIMEOUT:
-            s = F("HANDSHAKE_TIMEOUT");
-            break;
-        case WIFI_REASON_CONNECTION_FAIL:
-            s = F("CONNECTION_FAIL");
-            break;
-        case WIFI_REASON_AP_TSF_RESET:
-            s = F("AP_TSF_RESET");
-            break;
-        case WIFI_REASON_ROAMING:
-            s = F("ROAMING");
-            break;
-        case WIFI_REASON_ASSOC_COMEBACK_TIME_TOO_LONG:
-            s = F("ASSOC_COMEBACK_TIME_TOO_LONG");
-            break;
-        case WIFI_REASON_SA_QUERY_TIMEOUT:
-            s = F("SA_QUERY_TIMEOUT");
-            break;
+    case WIFI_REASON_UNSPECIFIED:
+        s = F("UNSPECIFIED");
+        break;
+    case WIFI_REASON_AUTH_EXPIRE:
+        s = F("AUTH_EXPIRE");
+        break;
+    case WIFI_REASON_AUTH_LEAVE:
+        s = F("AUTH_LEAVE");
+        break;
+    case WIFI_REASON_ASSOC_EXPIRE:
+        s = F("ASSOC_EXPIRE");
+        break;
+    case WIFI_REASON_ASSOC_TOOMANY:
+        s = F("ASSOC_TOOMANY");
+        break;
+    case WIFI_REASON_NOT_AUTHED:
+        s = F("NOT_AUTHED");
+        break;
+    case WIFI_REASON_NOT_ASSOCED:
+        s = F("NOT_ASSOCED");
+        break;
+    case WIFI_REASON_ASSOC_LEAVE:
+        s = F("ASSOC_LEAVE");
+        break;
+    case WIFI_REASON_ASSOC_NOT_AUTHED:
+        s = F("ASSOC_NOT_AUTHED");
+        break;
+    case WIFI_REASON_DISASSOC_PWRCAP_BAD:
+        s = F("DISASSOC_PWRCAP_BAD");
+        break;
+    case WIFI_REASON_DISASSOC_SUPCHAN_BAD:
+        s = F("DISASSOC_SUPCHAN_BAD");
+        break;
+    case WIFI_REASON_BSS_TRANSITION_DISASSOC:
+        s = F("BSS_TRANSITION_DISASSOC");
+        break;
+    case WIFI_REASON_IE_INVALID:
+        s = F("IE_INVALID");
+        break;
+    case WIFI_REASON_MIC_FAILURE:
+        s = F("MIC_FAILURE");
+        break;
+    case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+        s = F("4WAY_HANDSHAKE_TIMEOUT");
+        break;
+    case WIFI_REASON_GROUP_KEY_UPDATE_TIMEOUT:
+        s = F("GROUP_KEY_UPDATE_TIMEOUT");
+        break;
+    case WIFI_REASON_IE_IN_4WAY_DIFFERS:
+        s = F("IE_IN_4WAY_DIFFERS");
+        break;
+    case WIFI_REASON_GROUP_CIPHER_INVALID:
+        s = F("GROUP_CIPHER_INVALID");
+        break;
+    case WIFI_REASON_PAIRWISE_CIPHER_INVALID:
+        s = F("PAIRWISE_CIPHER_INVALID");
+        break;
+    case WIFI_REASON_AKMP_INVALID:
+        s = F("AKMP_INVALID");
+        break;
+    case WIFI_REASON_UNSUPP_RSN_IE_VERSION:
+        s = F("UNSUPP_RSN_IE_VERSION");
+        break;
+    case WIFI_REASON_INVALID_RSN_IE_CAP:
+        s = F("INVALID_RSN_IE_CAP");
+        break;
+    case WIFI_REASON_802_1X_AUTH_FAILED:
+        s = F("802_1X_AUTH_FAILED");
+        break;
+    case WIFI_REASON_CIPHER_SUITE_REJECTED:
+        s = F("CIPHER_SUITE_REJECTED");
+        break;
+    case WIFI_REASON_TDLS_PEER_UNREACHABLE:
+        s = F("TDLS_PEER_UNREACHABLE");
+        break;
+    case WIFI_REASON_TDLS_UNSPECIFIED:
+        s = F("TDLS_UNSPECIFIED");
+        break;
+    case WIFI_REASON_SSP_REQUESTED_DISASSOC:
+        s = F("SSP_REQUESTED_DISASSOC");
+        break;
+    case WIFI_REASON_NO_SSP_ROAMING_AGREEMENT:
+        s = F("NO_SSP_ROAMING_AGREEMENT");
+        break;
+    case WIFI_REASON_BAD_CIPHER_OR_AKM:
+        s = F("BAD_CIPHER_OR_AKM");
+        break;
+    case WIFI_REASON_NOT_AUTHORIZED_THIS_LOCATION:
+        s = F("NOT_AUTHORIZED_THIS_LOCATION");
+        break;
+    case WIFI_REASON_SERVICE_CHANGE_PERCLUDES_TS:
+        s = F("SERVICE_CHANGE_PERCLUDES_TS");
+        break;
+    case WIFI_REASON_UNSPECIFIED_QOS:
+        s = F("UNSPECIFIED_QOS");
+        break;
+    case WIFI_REASON_NOT_ENOUGH_BANDWIDTH:
+        s = F("NOT_ENOUGH_BANDWIDTH");
+        break;
+    case WIFI_REASON_MISSING_ACKS:
+        s = F("MISSING_ACKS");
+        break;
+    case WIFI_REASON_EXCEEDED_TXOP:
+        s = F("EXCEEDED_TXOP");
+        break;
+    case WIFI_REASON_STA_LEAVING:
+        s = F("STA_LEAVING");
+        break;
+    case WIFI_REASON_END_BA:
+        s = F("END_BA");
+        break;
+    case WIFI_REASON_UNKNOWN_BA:
+        s = F("UNKNOWN_BA");
+        break;
+    case WIFI_REASON_TIMEOUT:
+        s = F("TIMEOUT");
+        break;
+    case WIFI_REASON_PEER_INITIATED:
+        s = F("PEER_INITIATED");
+        break;
+    case WIFI_REASON_AP_INITIATED:
+        s = F("AP_INITIATED");
+        break;
+    case WIFI_REASON_INVALID_FT_ACTION_FRAME_COUNT:
+        s = F("INVALID_FT_ACTION_FRAME_COUNT");
+        break;
+    case WIFI_REASON_INVALID_PMKID:
+        s = F("INVALID_PMKID");
+        break;
+    case WIFI_REASON_INVALID_MDE:
+        s = F("INVALID_MDE");
+        break;
+    case WIFI_REASON_INVALID_FTE:
+        s = F("INVALID_FTE");
+        break;
+    case WIFI_REASON_TRANSMISSION_LINK_ESTABLISH_FAILED:
+        s = F("TRANSMISSION_LINK_ESTABLISH_FAILED");
+        break;
+    case WIFI_REASON_ALTERATIVE_CHANNEL_OCCUPIED:
+        s = F("ALTERATIVE_CHANNEL_OCCUPIED");
+        break;
+    case WIFI_REASON_BEACON_TIMEOUT:
+        s = F("BEACON_TIMEOUT");
+        break;
+    case WIFI_REASON_NO_AP_FOUND:
+        s = F("NO_AP_FOUND");
+        break;
+    case WIFI_REASON_AUTH_FAIL:
+        s = F("AUTH_FAIL");
+        break;
+    case WIFI_REASON_ASSOC_FAIL:
+        s = F("ASSOC_FAIL");
+        break;
+    case WIFI_REASON_HANDSHAKE_TIMEOUT:
+        s = F("HANDSHAKE_TIMEOUT");
+        break;
+    case WIFI_REASON_CONNECTION_FAIL:
+        s = F("CONNECTION_FAIL");
+        break;
+    case WIFI_REASON_AP_TSF_RESET:
+        s = F("AP_TSF_RESET");
+        break;
+    case WIFI_REASON_ROAMING:
+        s = F("ROAMING");
+        break;
+    case WIFI_REASON_ASSOC_COMEBACK_TIME_TOO_LONG:
+        s = F("ASSOC_COMEBACK_TIME_TOO_LONG");
+        break;
+    case WIFI_REASON_SA_QUERY_TIMEOUT:
+        s = F("SA_QUERY_TIMEOUT");
+        break;
     }
     Serial.print(F("WiFi disconnect: "));
     Serial.println(s);
@@ -253,6 +253,7 @@ void calculate_stepper_timer(double sps, uint16_t &divider, uint64_t &alarm_valu
     }
 }
 
+#ifdef WITH_DECMPU
 class DecMpu {
 public:
     float ypr[3]{};   // yaw(Z), pitch(Y), roll(X)
@@ -349,6 +350,7 @@ private:
     Quaternion _q{}, _q_base{};
     uint8_t _fifo_buf[45]{};
 };
+#endif
 
 // from esp-hal-timer.c
 struct hw_timer_s {
@@ -455,13 +457,15 @@ public:
         }
     }
 
-    bool start_shutter(int shots, int shot_intv, int shot_exposure, double shot_delay_s) {
+    bool start_shutter(int shots, int shot_intv, int shot_exposure, double shot_delay_s, int dither_dist, int dither_shots) {
         bool ret = false;
         if (shots && shot_intv >= 0 && shot_exposure > 0) {
             _shots = shots;
             _shot_intv = shot_intv;
             _shot_exposure = shot_exposure;
             _shot_state = SHOT;
+            _dither_dist = dither_dist;
+            _dither_to_shots = _dither_shots = dither_shots;
             ret = init_shutter_timer(shot_delay_s);
         }
         return ret;
@@ -476,9 +480,22 @@ public:
     void _shot() {
         switch (_shot_state) {
         case SHOT:  // shot done
-            if (!(--_shots))
+            if (!(--_shots)) {
+                if (_dither_dist || _dither_shots) {
+                    _dither_move = -_dither_cur_dist;
+                    _dither_cur_dist = 0;
+                    _do_dither = true;
+                }
                 stop_shutter();
-            else {
+            } else {
+                if ((_dither_dist || _dither_shots) && !(--_dither_to_shots)) {
+                    _dither_move = (int)random(0, _dither_dist + _dither_dist / 2);
+                    if (_dither_cur_dist > 0)
+                        _dither_move = -_dither_move;
+                    _dither_move += -_dither_cur_dist;
+                    _dither_cur_dist += _dither_move;
+                    _do_dither = true;
+                }
                 timerWrite(_shutter_timer, _shot_intv);
                 digitalWrite(_shutter_pin, 0);
                 _shot_state = INTV;
@@ -537,6 +554,19 @@ public:
         move(diff);
     }
 
+    void tick() {
+        if (_do_dither) {
+            _do_dither = false;
+            move(llround(ra_to_asec(_dither_move) / SEC_PER_STEP));
+            _dither_to_shots = _dither_shots;
+
+            if (_shutter_pin != -1 && _shutter_timer) {
+                timerWrite(_shutter_timer, _shot_intv);
+                digitalWrite(_shutter_pin, 0);
+            }
+        }
+    }
+
 private:
     int _step_pin;
     int _dir_pin;
@@ -549,6 +579,12 @@ private:
     int _shots = 0;
     int _shot_intv = 0;
     int _shot_exposure = 0;
+    int _dither_dist = 0;
+    int _dither_shots = 0;
+    int _dither_to_shots = 0;
+    int _dither_cur_dist = 0;
+    int _dither_move = 0;
+    bool _do_dither = false;
     shutter_state _shot_state = IDLE;
 
     hw_timer_t *_sidereal_timer = nullptr;
@@ -629,15 +665,21 @@ bool IRAM_ATTR shutter_timer_isr(AstroTracker *tracker) {
 class Interface {
 
 public:
-    void init(AstroTracker *tracker, DecMpu *mpu = nullptr) {
+#ifdef WITH_DECMPU
+void init(AstroTracker *tracker, DecMpu *mpu = nullptr) {
+#else
+void init(AstroTracker *tracker) {
+#endif
         if (!_cats.init()) {
             Serial.println("FS not inited");
             Serial.println(F_STR(HR_CAT_NAME));
             Serial.println(F_STR(STARNAMES_HR_NAME));
         }
         _tracker = tracker;
+#ifdef WITH_DECMPU
         if ((_mpu = mpu))
             mpu->init();
+#endif
 
         // подключение к WiFi..
         Serial.print(F("MAC: "));
@@ -664,13 +706,16 @@ public:
 
     void tick(uint64_t us) {
         _hub.tick();
+        _tracker->tick();
 
         if (_hub.focused() && (us - _upd_tmr_us) >= _upd_intv_us) {
             _upd_tmr_us = us;
             if (_do_run)
                 _runned_us = us;
 
+#ifdef WITH_DECMPU
             _mpu->tick();
+#endif
 
             // main
             uint64_t t = (_runned_us - _run_time_us) / 1000000L;
@@ -686,12 +731,14 @@ public:
             sec_to_comp(_tracker->position_steps * SEC_PER_STEP, d, m, s);
             snprintf(_sky_deg, sizeof(_sky_deg), "%3i° %2i' %6.03f\"", d, m, s);
             upd.update(F("sky_deg")).value(_sky_deg);
+#ifdef WITH_DECMPU
             sec_to_comp(degrees(_mpu->ypr[1]) * 3600, d, m, s);
             snprintf(_sky_deg, sizeof(_sky_deg), "%3i° %2i' %6.03f\"", d, m, s);
             upd.update(F("sky_dec")).value(_sky_deg);
             upd.update(F("dec_y")).value(degrees(_mpu->ypr[0]));
             upd.update(F("dec_p")).value(degrees(_mpu->ypr[1]));
             upd.update(F("dec_r")).value(degrees(_mpu->ypr[2]));
+#endif
 
             // main-movement
             sec_to_comp(_tracker->move_steps * SEC_PER_STEP, d, m, s);
@@ -719,7 +766,9 @@ public:
 private:
     GyverHub _hub;
     AstroTracker *_tracker = nullptr;
+#ifdef WITH_DECMPU
     DecMpu *_mpu = nullptr;
+#endif
     Catalogues _cats;
 
     uint64_t _upd_intv_us = 1000000;
@@ -729,6 +778,8 @@ private:
     uint32_t _unix_ts = 0;
     bool _do_run = false;
     int _images = 0;
+    int _dither_shots = CAMERA_DITHER;
+    int _dither_dist = CAMERA_DITHER_DIST;
     int _exposure_s = CAMERA_EXPOSURE;
     int _intv_s = CAMERA_INTV;
     double _shot_delay_s = CAMERA_SHOT_DELAY;
@@ -756,10 +807,10 @@ private:
 
     void on_build(gh::Builder& b) {
         static byte tab;
-        if (b.Tabs(&tab).text(F("Main;Capture;DEC;Network")).click())
+        if (b.Tabs(&tab).text(F(GUI_TABS)).click())
             b.refresh();
 
-        b.show(tab == 0);   // Main
+        b.show(tab == MAIN_TAB);   // Main
         if (b.Confirm_(F("main_conf")).text(F(_do_run? "Stop tracking?": "Start tracking?")).click()) {
             int x = b.build.value;
             if (!_do_run && x) {
@@ -874,14 +925,18 @@ private:
         }
         b.endRow();
 
-        b.show(tab == 1);   // Capture
+        b.show(tab == CAPTURE_TAB);   // Capture
         b.beginRow();
         b.Time_(F("capt_exp"), &_exposure_s).label(F("Exposure time")).disabled(_do_exposure);
         b.Time_(F("capt_intv"), &_intv_s).label(F("Time between capture")).disabled(_do_exposure);
         b.endRow();
         b.beginRow();
-        b.Input_(F("capt_delay"), &_shot_delay_s).label(F("Shot delay, s")).disabled(_do_exposure);
-        b.Input_(F("capt_images"), &_images).label(F("Images to capture")).disabled(_do_exposure).hint(F("-1 - infinite* mode"));
+        b.Spinner_(F("capt_delay"), &_shot_delay_s).label(F("Shot delay, s")).range(0.0, 1.0, 0.1).disabled(_do_exposure);
+        b.Spinner_(F("capt_images"), &_images).label(F("Images to capture")).range(-1, INT_MAX, 1).disabled(_do_exposure).hint(F("-1 - infinite* mode"));
+        b.endRow();
+        b.beginRow();
+        b.Spinner_(F("capt_dither_dist"), &_dither_dist).label(F("Dither distance, s")).range(0, 100, 1).disabled(_do_exposure);
+        b.Spinner_(F("capt_dither"), &_dither_shots).label(F("Shots between dither")).range(0, 100, 1).disabled(_do_exposure);
         b.endRow();
         if (b.Confirm_(F("capt_conf")).text(F(_do_exposure? "Stop shuttering?": "Start shuttering?")).click()) {
             int x = b.build.value;
@@ -890,7 +945,7 @@ private:
                 Serial.println(F("Begin!"));
                 if ((_intv_s < CAMERA_MIN_INTV))
                     _intv_s = CAMERA_MIN_INTV;
-                _tracker->start_shutter(_images, _intv_s, _exposure_s, _shot_delay_s);
+                _tracker->start_shutter(_images, _intv_s, _exposure_s, _shot_delay_s, _dither_dist, _dither_shots);
             } else if (x) {
                 Serial.println(F("Stop!"));
                 _tracker->stop_shutter();
@@ -908,7 +963,8 @@ private:
         b.Label_(F("capt_status_state")).label(F("state"));
         b.endRow();
 
-        b.show(tab == 2);   // DEC control
+#ifdef WITH_DECMPU
+        b.show(tab == DEC_TAB);   // DEC control
         b.beginRow();
         b.Label_(F("dec_y")).label(F("yaw")).value(_mpu->ypr[0]);
         b.Label_(F("dec_p")).label(F("pitch")).value(_mpu->ypr[1]);
@@ -926,8 +982,9 @@ private:
         b.Button().label(F("Calibrate")).icon(F("f05b")).attach([this]() { this->_hub.sendAction(F("dec_calib")); });
         b.Button().label(F("Set base")).icon(F("f015")).attach([this]() { _mpu->set_base(); });
         b.endRow();
+#endif
 
-        b.show(tab == 3);   // Network
+        b.show(tab == NETWORK_TAB);   // Network
         b.beginRow();
         b.Title(F("AP"));
         if (b.Switch(&_ap_on).click()) {
@@ -988,7 +1045,9 @@ private:
 
 
 AstroTracker tracker(STEP_S_PIN, STEP_D_PIN, 1, SHUTTER_PIN, STEP_E_PIN);
+#ifdef WITH_DECMPU
 DecMpu mpu;
+#endif
 Interface iface;
 
 void setup() {
@@ -996,7 +1055,11 @@ void setup() {
     Wire.begin();
     LittleFS.begin();
     Serial.println(F("setup"));
+#ifdef WITH_DECMPU
     iface.init(&tracker, &mpu);
+#else
+    iface.init(&tracker);
+#endif
     tracker.enable(true);
 }
 

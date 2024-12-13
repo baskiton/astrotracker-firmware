@@ -136,11 +136,11 @@ for i in sorted(_star_names, key=lambda x: x[0][5:] if x[0][0] == "'" else x[0])
         name += f' ({i[1]})'
     star_names[name] = i[1]
 
-for i in sorted(bay_star_names, key=lambda x: x[0][:-3].strip()):
+for i in sorted(bay_star_names, key=lambda x: x[0].strip()):
     if i[0] not in star_names:
         star_names[i[0]] = i[1]
 
-for i in sorted(flam_star_names, key=lambda x: int(x[0][:-3].strip())):
+for i in sorted(flam_star_names, key=lambda x: (int(x[0].partition(' ')[0]), x[0].partition(' ')[2].strip())):
     if i[0] not in star_names:
         star_names[i[0]] = i[1]
 

@@ -8,6 +8,7 @@
 // TRACKER
 #define TRACKER_WIFI_AP
 // #define _SHOW_US
+//#define WITH_DECMPU
 
 #define STEP_E_PIN 25
 #define STEP_D_PIN 26
@@ -47,6 +48,8 @@
 #define CAMERA_EXPOSURE 30
 #define CAMERA_INTV CAMERA_MIN_INTV
 #define CAMERA_SHOT_DELAY 0.2
+#define CAMERA_DITHER 10        // shots between dither
+#define CAMERA_DITHER_DIST 40   // dither distance, sec
 
 // BRIDGES
 // #define GH_NO_STREAM  // отключить встроенный модуль связи stream
@@ -94,3 +97,18 @@
 // #define GH_NO_HTTP_FETCH          // отключить скачивание файлов по http (для esp)
 // #define GH_NO_HTTP_UPLOAD         // отключить загрузку файлов по http (для esp)
 // #define GH_NO_HTTP_UPLOAD_PORTAL  // упрощённую загрузку файлов с ip/hub/upload_portal (для esp)
+
+// GUI
+enum {
+    MAIN_TAB = 0,
+    CAPTURE_TAB,
+#ifdef WITH_DECMPU
+    DEC_TAB,
+#endif
+    NETWORK_TAB,
+};
+#ifdef WITH_DECMPU
+#define GUI_TABS "Main;Capture;DEC;Network"
+#else
+#define GUI_TABS "Main;Capture;Network"
+#endif
